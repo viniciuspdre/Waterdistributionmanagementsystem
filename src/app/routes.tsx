@@ -1,0 +1,63 @@
+import { createBrowserRouter, Outlet } from 'react-router';
+import { AuthProvider } from './context/AuthContext';
+import { DataProvider } from './context/DataContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Login } from './components/Login';
+import { Register } from './components/Register';
+import { FamilyList } from './components/FamilyList';
+import { FamilyForm } from './components/FamilyForm';
+import { FamilyDetails } from './components/FamilyDetails';
+import { FamilyEdit } from './components/FamilyEdit';
+import { Settings } from './components/Settings';
+import { UserProfile } from './components/UserProfile';
+import { Header } from './components/Header';
+import { Toaster } from './components/ui/sonner';
+
+function RootLayout() {
+  return (
+    <AuthProvider>
+      <Toaster />
+      <Outlet />
+    </AuthProvider>
+  );
+}
+
+function AppLayout() {
+  return (
+    <DataProvider>
+      <div className="min-h-screen bg-background">
+        <Header />
+        <Outlet />
+      </div>
+    </DataProvider>
+  );
+}
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      {
+        path: '',
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: '',
+            element: <AppLayout />,
+            children: [
+              { index: true, Component: FamilyList },
+              { path: 'nova-familia', Component: FamilyForm },
+              { path: 'familia/:id', Component: FamilyDetails },
+              { path: 'familia/:id/editar', Component: FamilyEdit },
+              { path: 'configuracoes', Component: Settings },
+              { path: 'perfil', Component: UserProfile },
+            ],
+          },
+        ],
+      },
+      { path: 'login', Component: Login },
+      { path: 'registro', Component: Register },
+    ],
+  },
+]);
