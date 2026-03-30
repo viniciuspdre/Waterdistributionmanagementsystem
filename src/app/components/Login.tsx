@@ -25,7 +25,6 @@ export function Login() {
       toast.success('Login realizado com sucesso!');
       navigate('/');
     } catch (error: any) {
-      //ao invés de Email ou senha incorretos, mostrar algo do tipo "Credenciais inválidas"
       toast.error(error.message || 'Credenciais inválidas');
     } finally {
       setIsLoading(false);
