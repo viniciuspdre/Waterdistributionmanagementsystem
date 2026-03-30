@@ -1,124 +1,91 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: string;
-}
+import { authService } from '../services/authService';
+import { userService } from '../services/userService';
+import { UserDTO } from '../types';
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => boolean;
-  register: (name: string, email: string, password: string) => boolean;
+  user: UserDTO | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  updateUser: (name: string, email: string) => void;
-  changePassword: (oldPassword: string, newPassword: string) => boolean;
+  updateUser: (id: number, name: string, email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface StoredUser extends User {
-  password: string;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserDTO | null>(null);
 
   useEffect(() => {
-    // Verificar se há um usuário logado no localStorage
-    const currentUser = localStorage.getItem('currentUser');
-    if (currentUser) {
-      const userData = JSON.parse(currentUser);
-      setUser(userData);
+    // Escutar eventos de logout disparados pela API
+    const handleLogout = () => logout();
+    document.addEventListener('auth:logout', handleLogout);
+
+    // Recupera usuário atual do storage (mock de perfil, já que a API não possui endpoint /me)
+    const currentUser = localStorage.getItem('currentUserProfile');
+    const token = localStorage.getItem('hf_token');
+    
+    if (currentUser && token) {
+      setUser(JSON.parse(currentUser));
+    } else {
+      logout();
     }
+
+    return () => {
+      document.removeEventListener('auth:logout', handleLogout);
+    };
   }, []);
 
-  const register = (name: string, email: string, password: string): boolean => {
-    // Verificar se o email já existe
-    const users = getAllUsers();
-    const emailExists = users.some((u) => u.email === email);
-
-    if (emailExists) {
-      return false;
+  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+    try {
+      const newUser = await userService.createUser({ name, email, password });
+      // Faz login automático após criar conta
+      return await login(email, password);
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
     }
-
-    // Criar novo usuário
-    const newUser: StoredUser = {
-      id: crypto.randomUUID(),
-      name,
-      email,
-      password, // Em produção, isso deveria ser hasheado!
-      createdAt: new Date().toISOString(),
-    };
-
-    // Salvar usuário
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-
-    // Fazer login automático após cadastro
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-
-    return true;
   };
 
-  const login = (email: string, password: string): boolean => {
-    const users = getAllUsers();
-    const foundUser = users.find((u) => u.email === email && u.password === password);
-
-    if (!foundUser) {
-      return false;
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await authService.login({ email, password });
+      localStorage.setItem('hf_token', response.token);
+      
+      // Salvar um perfil básico para a UI, pois a API retorna apenas o Token.
+      // Em produção, leríamos os claims do JWT.
+      const userProfile: UserDTO = { name: email.split('@')[0], email }; 
+      setUser(userProfile);
+      localStorage.setItem('currentUserProfile', JSON.stringify(userProfile));
+      
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     }
-
-    // Remover senha do objeto de usuário
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
-    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-
-    return true;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('currentUser');
+    localStorage.removeItem('hf_token');
+    localStorage.removeItem('currentUserProfile');
   };
 
-  const updateUser = (name: string, email: string) => {
-    if (!user) return;
-
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const updatedUsers = users.map((u: any) =>
-      u.email === user.email ? { ...u, name, email } : u
-    );
-
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    const updatedUser = { ...user, name, email };
-    setUser(updatedUser);
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-  };
-
-  const changePassword = (oldPassword: string, newPassword: string): boolean => {
-    if (!user) return false;
-
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const currentUser = users.find((u: any) => u.email === user.email);
-
-    if (!currentUser || currentUser.password !== oldPassword) {
-      return false;
+  const updateUser = async (id: number, name: string, email: string) => {
+    try {
+      if (!user) return;
+      
+      const updatedUser = await userService.updateUser(id, { name, email });
+      setUser(updatedUser);
+      localStorage.setItem('currentUserProfile', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Update failed:', error);
+      throw error;
     }
-
-    const updatedUsers = users.map((u: any) =>
-      u.email === user.email ? { ...u, password: newPassword } : u
-    );
-
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    return true;
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, changePassword }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -130,10 +97,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
-// Função auxiliar para obter todos os usuários
-function getAllUsers(): StoredUser[] {
-  const stored = localStorage.getItem('users');
-  return stored ? JSON.parse(stored) : [];
 }

@@ -1,98 +1,108 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Family, Settings, RainfallData, WaterDelivery, Person } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { FamilyDTO, SystemSettingsDTO, MonthlyRainfallDTO, WaterDeliveryDTO } from '../types';
+import { familyService } from '../services/familyService';
+import { systemSettingsService } from '../services/systemSettingsService';
+import { monthlyRainfallService } from '../services/monthlyRainfallService';
+import { waterDeliveryService } from '../services/waterDeliveryService';
 
 interface DataContextType {
-  families: Family[];
-  settings: Settings;
-  addFamily: (family: Omit<Family, 'id' | 'createdAt'>) => void;
-  updateFamily: (id: string, family: Partial<Family>) => void;
-  deleteFamily: (id: string) => void;
-  addWaterDelivery: (familyId: string, delivery: Omit<WaterDelivery, 'id'>) => void;
-  updateSettings: (settings: Partial<Settings>) => void;
-  addRainfallData: (data: RainfallData) => void;
+  families: FamilyDTO[];
+  settings: SystemSettingsDTO;
+  rainfallData: MonthlyRainfallDTO[];
+  loadingFamilies: boolean;
+  fetchFamilies: () => Promise<void>;
+  addFamily: (family: FamilyDTO) => Promise<void>;
+  updateFamily: (id: number, family: FamilyDTO) => Promise<void>;
+  deleteFamilyDataLocally: (id: number) => void;
+  addWaterDelivery: (delivery: WaterDeliveryDTO) => Promise<void>;
+  updateSettings: (settings: SystemSettingsDTO) => Promise<void>;
+  addRainfallData: (data: MonthlyRainfallDTO) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const defaultSettings: Settings = {
-  dailyConsumptionPerPerson: 50, // Recomendação ONU
-  rainfallData: [],
+const defaultSettings: SystemSettingsDTO = {
+  dailyWaterConsumption: 50, // Fallback se a API falhar
 };
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [families, setFamilies] = useState<Family[]>(() => {
-    const stored = localStorage.getItem('water-families');
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [families, setFamilies] = useState<FamilyDTO[]>([]);
+  const [settings, setSettings] = useState<SystemSettingsDTO>(defaultSettings);
+  const [rainfallData, setRainfallData] = useState<MonthlyRainfallDTO[]>([]);
+  const [loadingFamilies, setLoadingFamilies] = useState(false);
 
-  const [settings, setSettings] = useState<Settings>(() => {
-    const stored = localStorage.getItem('water-settings');
-    return stored ? JSON.parse(stored) : defaultSettings;
-  });
+  const fetchFamilies = useCallback(async () => {
+    setLoadingFamilies(true);
+    try {
+      const response = await familyService.findAllFamilies({ size: 100, page: 0 }); // Carregando mais para evitar paginação nos hooks iniciais
+      setFamilies(response.content || []);
+    } catch (error) {
+      console.error('Failed to load families:', error);
+    } finally {
+      setLoadingFamilies(false);
+    }
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const response = await systemSettingsService.findSystemSettings();
+      if (response) {
+        setSettings(response);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  }, []);
+
+  const fetchRainfalls = useCallback(async () => {
+    try {
+      // Buscar do ano atual como padrão
+      const currentYear = new Date().getFullYear();
+      const response = await monthlyRainfallService.findByYear(currentYear);
+      setRainfallData(response || []);
+    } catch (error) {
+      console.error('Failed to load rainfalls:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('water-families', JSON.stringify(families));
-  }, [families]);
+    // Como a API usa AuthContext e precisa do Bearer token, podemos disparar carregar os dados se tivermos o token
+    const token = localStorage.getItem('hf_token');
+    if (token) {
+      fetchFamilies();
+      fetchSettings();
+      fetchRainfalls();
+    }
+  }, [fetchFamilies, fetchSettings, fetchRainfalls]);
 
-  useEffect(() => {
-    localStorage.setItem('water-settings', JSON.stringify(settings));
-  }, [settings]);
-
-  const addFamily = (family: Omit<Family, 'id' | 'createdAt'>) => {
-    const newFamily: Family = {
-      ...family,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-    setFamilies((prev) => [...prev, newFamily]);
+  const addFamily = async (family: FamilyDTO) => {
+    const created = await familyService.createFamily(family);
+    setFamilies((prev) => [...prev, created]);
   };
 
-  const updateFamily = (id: string, updates: Partial<Family>) => {
-    setFamilies((prev) =>
-      prev.map((family) => (family.id === id ? { ...family, ...updates } : family))
-    );
+  const updateFamily = async (id: number, updates: FamilyDTO) => {
+    const updated = await familyService.updateFamily(id, updates);
+    setFamilies((prev) => prev.map((f) => (f.id === id ? updated : f)));
   };
 
-  const deleteFamily = (id: string) => {
+  const deleteFamilyDataLocally = (id: number) => {
     setFamilies((prev) => prev.filter((family) => family.id !== id));
   };
 
-  const addWaterDelivery = (familyId: string, delivery: Omit<WaterDelivery, 'id'>) => {
-    const newDelivery: WaterDelivery = {
-      ...delivery,
-      id: crypto.randomUUID(),
-      // Garantir compatibilidade: se volumeSent não foi fornecido, usar volumeDelivered
-      volumeSent: delivery.volumeSent ?? delivery.volumeDelivered,
-    };
-    
-    setFamilies((prev) =>
-      prev.map((family) =>
-        family.id === familyId
-          ? { ...family, deliveries: [...family.deliveries, newDelivery] }
-          : family
-      )
-    );
+  const addWaterDelivery = async (delivery: WaterDeliveryDTO) => {
+    await waterDeliveryService.save(delivery);
+    // Para atualizar a lista geral ou a UI da família, refaz a busca
+    await fetchFamilies();
   };
 
-  const updateSettings = (updates: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...updates }));
+  const updateSettings = async (updates: SystemSettingsDTO) => {
+    const updated = await systemSettingsService.updateSystemSettings(updates);
+    setSettings(updated);
   };
 
-  const addRainfallData = (data: RainfallData) => {
-    setSettings((prev) => {
-      const existingIndex = prev.rainfallData.findIndex(
-        (rd) => rd.year === data.year && rd.month === data.month
-      );
-      
-      const newRainfallData = [...prev.rainfallData];
-      if (existingIndex >= 0) {
-        newRainfallData[existingIndex] = data;
-      } else {
-        newRainfallData.push(data);
-      }
-      
-      return { ...prev, rainfallData: newRainfallData };
-    });
+  const addRainfallData = async (data: MonthlyRainfallDTO) => {
+    await monthlyRainfallService.save(data);
+    await fetchRainfalls();
   };
 
   return (
@@ -100,9 +110,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       value={{
         families,
         settings,
+        rainfallData,
+        loadingFamilies,
+        fetchFamilies,
         addFamily,
         updateFamily,
-        deleteFamily,
+        deleteFamilyDataLocally,
         addWaterDelivery,
         updateSettings,
         addRainfallData,

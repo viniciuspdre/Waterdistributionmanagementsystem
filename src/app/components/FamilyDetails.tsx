@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useData } from '../context/DataContext';
 import { Button } from './ui/button';
@@ -20,13 +20,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
-  calculateCurrentWaterLevel,
-  calculateNextDeliveryDate,
-  formatDate,
-  formatVolume,
-  calculateDailyConsumption,
-} from '../utils/waterCalculations';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -38,17 +31,30 @@ import {
   AlertDialogTrigger,
 } from './ui/alert-dialog';
 import { toast } from 'sonner';
+import { waterDeliveryService } from '../services/waterDeliveryService';
+import { WaterDeliveryDTO } from '../types';
 
 export function FamilyDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { families, settings, addWaterDelivery, deleteFamily } = useData();
+  const { families, addWaterDelivery, deleteFamilyDataLocally } = useData();
 
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [deliveryVolume, setDeliveryVolume] = useState('');
   const [volumeSent, setVolumeSent] = useState('');
+  
+  const [deliveries, setDeliveries] = useState<WaterDeliveryDTO[]>([]);
 
-  const family = families.find((f) => f.id === id);
+  const familyIdNum = Number(id);
+  const family = families.find((f) => f.id === familyIdNum);
+
+  useEffect(() => {
+    if (familyIdNum) {
+      waterDeliveryService.findByYearAndFamilyId(new Date().getFullYear(), familyIdNum)
+        .then(setDeliveries)
+        .catch(console.error);
+    }
+  }, [familyIdNum]);
 
   if (!family) {
     return (
@@ -64,17 +70,14 @@ export function FamilyDetails() {
     );
   }
 
-  const { currentLevel, daysUntilEmpty, percentageFull } = calculateCurrentWaterLevel(
-    family,
-    settings
-  );
-  const { nextDeliveryDate, shouldDeliver } = calculateNextDeliveryDate(family, settings);
-  const dailyConsumption = calculateDailyConsumption(
-    family.members.length,
-    settings.dailyConsumptionPerPerson
-  );
+  const totalCapacity = family.cisterns.reduce((sum, c) => sum + c.capacityLiters, 0) || 1;
+  const currentLevel = family.cisterns.reduce((sum, c) => sum + c.currentLevelLiters, 0);
+  const percentageFull = Math.round((currentLevel / totalCapacity) * 100);
+  const daysUntilEmpty = family.remainingDays ?? 0;
+  const dailyConsumption = family.dailyConsumption ?? 0;
+  const nextDateRaw = family.nextDeliveryDate;
 
-  const handleAddDelivery = (e: React.FormEvent) => {
+  const handleAddDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!deliveryVolume || parseFloat(deliveryVolume) <= 0) {
@@ -90,9 +93,6 @@ export function FamilyDetails() {
     const volume = parseFloat(deliveryVolume);
     const sent = parseFloat(volumeSent);
     
-    // Calcular capacidade total de todas as cisternas
-    const totalCapacity = family.cisterns.reduce((sum, c) => sum + c.capacity, 0);
-    
     if (volume > totalCapacity) {
       toast.error('Volume entregue excede a capacidade total das cisternas');
       return;
@@ -103,20 +103,28 @@ export function FamilyDetails() {
       return;
     }
 
-    addWaterDelivery(family.id, {
-      date: new Date(deliveryDate).toISOString(),
-      volumeDelivered: volume,
-      volumeSent: sent,
-    });
+    try {
+      await addWaterDelivery({
+        familyId: family.id!,
+        deliveryDate: deliveryDate, // yyyy-MM-dd
+        deliveredAmountLiters: volume,
+        requestedAmountLiters: sent,
+      });
 
-    toast.success('Entrega de água registrada!');
-    setDeliveryVolume('');
-    setVolumeSent('');
-    setDeliveryDate(new Date().toISOString().split('T')[0]);
+      toast.success('Entrega de água registrada!');
+      setDeliveryVolume('');
+      setVolumeSent('');
+      
+      // Reload deliveries
+      const updatedDels = await waterDeliveryService.findByYearAndFamilyId(new Date().getFullYear(), familyIdNum);
+      setDeliveries(updatedDels);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao registrar entrega');
+    }
   };
 
-  const sortedDeliveries = [...family.deliveries].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  const sortedDeliveries = [...deliveries].sort(
+    (a, b) => new Date(b.deliveryDate).getTime() - new Date(a.deliveryDate).getTime()
   );
 
   return (
@@ -142,23 +150,22 @@ export function FamilyDetails() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                <AlertDialogTitle>Confirmar exclusão local</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tem certeza que deseja excluir a família "{family.name}"? Esta ação não pode ser desfeita
-                  e todos os dados e histórico de entregas serão perdidos.
+                  Remover esta família da visualização local. (A exclusão no backend não está implementada no controller base)
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    deleteFamily(family.id);
-                    toast.success('Família excluída com sucesso');
+                    deleteFamilyDataLocally(family.id!);
+                    toast.success('Família oculta localmente');
                     navigate('/');
                   }}
                   className="bg-destructive hover:bg-destructive/90"
                 >
-                  Excluir
+                  Confirmar
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -169,7 +176,6 @@ export function FamilyDetails() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Coluna Principal */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Informações da Família */}
           <Card>
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -177,11 +183,11 @@ export function FamilyDetails() {
                   <CardTitle className="text-2xl mb-2">{family.name}</CardTitle>
                   <CardDescription className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    Lat: {family.coordinates.latitude.toFixed(4)}, Long:{' '}
-                    {family.coordinates.longitude.toFixed(4)}
+                    Lat: {family.latitude.toFixed(4)}, Long:{' '}
+                    {family.longitude.toFixed(4)}
                   </CardDescription>
                 </div>
-                {shouldDeliver && (
+                {family.familyStatus === 'CRITICO' && (
                   <Badge variant="destructive" className="text-sm">
                     Entrega Urgente
                   </Badge>
@@ -203,7 +209,7 @@ export function FamilyDetails() {
                   <div className="flex items-center gap-2">
                     <Droplets className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium">
-                      {formatVolume(family.cisterns.reduce((sum, c) => sum + c.capacity, 0))}
+                      {totalCapacity}L
                     </span>
                   </div>
                 </div>
@@ -212,18 +218,17 @@ export function FamilyDetails() {
                   <p className="text-sm text-muted-foreground">Consumo Diário</p>
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{formatVolume(dailyConsumption)}/dia</span>
+                    <span className="font-medium">{dailyConsumption} L/dia</span>
                   </div>
                 </div>
               </div>
 
-              {family.hasRainGutter && (
+              {family.hasGutterSystem && (
                 <Badge variant="outline">Sistema de captação de chuva instalado</Badge>
               )}
             </CardContent>
           </Card>
 
-          {/* Status da Cisterna */}
           <Card>
             <CardHeader>
               <CardTitle>Status da Cisterna</CardTitle>
@@ -247,7 +252,7 @@ export function FamilyDetails() {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {formatVolume(currentLevel)} de {formatVolume(family.cisterns.reduce((sum, c) => sum + c.capacity, 0))}
+                  {currentLevel}L de {totalCapacity}L
                 </p>
               </div>
 
@@ -257,50 +262,36 @@ export function FamilyDetails() {
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Dias Restantes</p>
                   <p className="text-xl font-semibold">
-                    {daysUntilEmpty > 0 ? `${daysUntilEmpty} dias` : 'Cisterna vazia'}
+                    {daysUntilEmpty > 0 ? `${daysUntilEmpty} dias` : 'Cisterna Quase vazia'}
                   </p>
                 </div>
 
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Próxima Entrega Prevista</p>
                   <p className="text-xl font-semibold">
-                    {nextDeliveryDate ? formatDate(nextDeliveryDate) : 'Não calculado'}
+                    {nextDateRaw ? new Date(nextDateRaw).toLocaleDateString('pt-BR') : 'Não calculado'}
                   </p>
                 </div>
               </div>
-
-              {shouldDeliver && (
-                <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-red-900">Atenção necessária</p>
-                    <p className="text-sm text-red-700">
-                      Esta família precisa receber água urgentemente. O nível da cisterna está
-                      muito baixo.
-                    </p>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {/* Membros da Família */}
           <Card>
             <CardHeader>
               <CardTitle>Membros da Família</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {family.members.map((member) => (
+                {family.members.map((member, idx) => (
                   <div
-                    key={member.id}
+                    key={member.id || idx}
                     className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg"
                   >
                     <div>
                       <p className="font-medium">{member.name}</p>
                       <p className="text-sm text-muted-foreground">{member.age} anos</p>
                     </div>
-                    {member.bedridden && (
+                    {member.isBedridden && (
                       <Badge variant="secondary" className="text-xs">
                         Acamado
                       </Badge>
@@ -311,7 +302,6 @@ export function FamilyDetails() {
             </CardContent>
           </Card>
 
-          {/* Cisternas */}
           <Card>
             <CardHeader>
               <CardTitle>Cisternas Cadastradas</CardTitle>
@@ -320,7 +310,7 @@ export function FamilyDetails() {
               <div className="space-y-3">
                 {family.cisterns.map((cistern, index) => (
                   <div
-                    key={cistern.id}
+                    key={cistern.id || index}
                     className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg"
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -329,11 +319,11 @@ export function FamilyDetails() {
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <p className="text-muted-foreground">Capacidade</p>
-                        <p className="font-medium">{formatVolume(cistern.capacity)}</p>
+                        <p className="font-medium">{cistern.capacityLiters}L</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Volume Inicial</p>
-                        <p className="font-medium">{formatVolume(cistern.currentVolume)}</p>
+                        <p className="text-muted-foreground">Volume Atual</p>
+                        <p className="font-medium">{cistern.currentLevelLiters}L</p>
                       </div>
                     </div>
                   </div>
@@ -343,9 +333,7 @@ export function FamilyDetails() {
           </Card>
         </div>
 
-        {/* Coluna Lateral */}
         <div className="space-y-6">
-          {/* Registrar Entrega */}
           <Card>
             <CardHeader>
               <CardTitle>Registrar Entrega</CardTitle>
@@ -375,9 +363,6 @@ export function FamilyDetails() {
                     min="1"
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Capacidade total: {formatVolume(family.cisterns.reduce((sum, c) => sum + c.capacity, 0))}
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -401,11 +386,10 @@ export function FamilyDetails() {
             </CardContent>
           </Card>
 
-          {/* Histórico de Entregas */}
           <Card>
             <CardHeader>
               <CardTitle>Histórico de Entregas</CardTitle>
-              <CardDescription>Últimas entregas registradas</CardDescription>
+              <CardDescription>Entregas de {new Date().getFullYear()}</CardDescription>
             </CardHeader>
             <CardContent>
               {sortedDeliveries.length === 0 ? (
@@ -414,29 +398,22 @@ export function FamilyDetails() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {sortedDeliveries.slice(0, 5).map((delivery) => (
+                  {sortedDeliveries.map((delivery) => (
                     <div key={delivery.id} className="space-y-1 p-3 bg-secondary/50 rounded-lg">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        <span>{formatDate(delivery.date)}</span>
+                        <span>{new Date(delivery.deliveryDate).toLocaleDateString('pt-BR')}</span>
                       </div>
-                      {delivery.volumeSent !== undefined && (
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground">Enviado:</span>
-                          <span className="font-medium">{formatVolume(delivery.volumeSent)}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Solicitado:</span>
+                        <span className="font-medium">{delivery.requestedAmountLiters}L</span>
+                      </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Entregue:</span>
-                        <span className="font-medium text-blue-600">{formatVolume(delivery.volumeDelivered)}</span>
+                        <span className="font-medium text-blue-600">{delivery.deliveredAmountLiters}L</span>
                       </div>
                     </div>
                   ))}
-                  {sortedDeliveries.length > 5 && (
-                    <p className="text-xs text-muted-foreground text-center pt-2">
-                      + {sortedDeliveries.length - 5} entregas anteriores
-                    </p>
-                  )}
                 </div>
               )}
             </CardContent>

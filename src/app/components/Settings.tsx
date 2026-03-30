@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
-import { ArrowLeft, CloudRain, Droplets, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, CloudRain, Droplets, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select,
@@ -18,60 +18,66 @@ import {
 
 export function Settings() {
   const navigate = useNavigate();
-  const { settings, updateSettings, addRainfallData } = useData();
+  const { settings, rainfallData, updateSettings, addRainfallData } = useData();
+  const [isSubmittingSettings, setIsSubmittingSettings] = useState(false);
+  const [isSubmittingRainfall, setIsSubmittingRainfall] = useState(false);
 
   const [dailyConsumption, setDailyConsumption] = useState(
-    settings.dailyConsumptionPerPerson.toString()
+    settings?.dailyWaterConsumption?.toString() || '50'
   );
 
-  // Estado para adicionar dados de chuva
   const [rainfallYear, setRainfallYear] = useState(new Date().getFullYear().toString());
   const [rainfallMonth, setRainfallMonth] = useState('1');
   const [rainfallAmount, setRainfallAmount] = useState('');
 
-  const handleSaveSettings = () => {
-    updateSettings({
-      dailyConsumptionPerPerson: parseFloat(dailyConsumption),
-    });
-    toast.success('Configurações salvas!');
+  const handleSaveSettings = async () => {
+    setIsSubmittingSettings(true);
+    try {
+      await updateSettings({
+        id: settings.id,
+        dailyWaterConsumption: parseFloat(dailyConsumption),
+      });
+      toast.success('Configurações salvas!');
+    } catch (e: any) {
+      toast.error('Erro ao salvar configurações.');
+    } finally {
+      setIsSubmittingSettings(false);
+    }
   };
 
-  const handleAddRainfall = (e: React.FormEvent) => {
+  const handleAddRainfall = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!rainfallAmount || parseFloat(rainfallAmount) < 0) {
-      toast.error('Digite a precipitação em mm');
+      toast.error('Digite a precipitação em mm maior ou igual a 0');
       return;
     }
 
-    addRainfallData({
-      year: parseInt(rainfallYear),
-      month: parseInt(rainfallMonth),
-      precipitation: parseFloat(rainfallAmount),
-    });
+    setIsSubmittingRainfall(true);
+    try {
+      await addRainfallData({
+        year: parseInt(rainfallYear),
+        month: parseInt(rainfallMonth),
+        rainfallMM: parseFloat(rainfallAmount),
+      });
 
-    toast.success('Dados de precipitação adicionados!');
-    setRainfallAmount('');
+      toast.success('Dados de precipitação adicionados!');
+      setRainfallAmount('');
+    } catch (e: any) {
+      toast.error('Erro ao adicionar precipitação');
+    } finally {
+      setIsSubmittingRainfall(false);
+    }
   };
 
-  const sortedRainfallData = [...settings.rainfallData].sort((a, b) => {
+  const sortedRainfallData = [...rainfallData].sort((a, b) => {
     if (a.year !== b.year) return b.year - a.year;
     return b.month - a.month;
   });
 
   const months = [
-    'Janeiro',
-    'Fevereiro',
-    'Março',
-    'Abril',
-    'Maio',
-    'Junho',
-    'Julho',
-    'Agosto',
-    'Setembro',
-    'Outubro',
-    'Novembro',
-    'Dezembro',
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
   ];
 
   const currentYear = new Date().getFullYear();
@@ -135,12 +141,13 @@ export function Settings() {
             </div>
 
             <div className="flex justify-end">
-              <Button onClick={handleSaveSettings}>Salvar Configurações</Button>
+              <Button onClick={handleSaveSettings} disabled={isSubmittingSettings}>
+                {isSubmittingSettings ? 'Salvando...' : 'Salvar Configurações'}
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Dados de Precipitação */}
         <Card>
           <CardHeader>
             <CardTitle>Dados de Precipitação</CardTitle>
@@ -198,7 +205,7 @@ export function Settings() {
                 </div>
 
                 <div className="flex items-end">
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={isSubmittingRainfall}>
                     <Plus className="mr-2 h-4 w-4" />
                     Adicionar
                   </Button>
@@ -208,7 +215,6 @@ export function Settings() {
 
             <Separator />
 
-            {/* Lista de dados de precipitação */}
             <div className="space-y-3">
               <h4 className="font-medium">Histórico de Precipitação</h4>
               {sortedRainfallData.length === 0 ? (
@@ -228,7 +234,7 @@ export function Settings() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{data.precipitation} mm</span>
+                        <span className="font-medium">{data.rainfallMM} mm</span>
                         <CloudRain className="h-4 w-4 text-blue-500" />
                       </div>
                     </div>

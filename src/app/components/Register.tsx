@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Droplets, ArrowLeft } from 'lucide-react';
+import { Droplets } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function Register() {
@@ -18,12 +18,11 @@ export function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validações
-    if (password.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres');
+    if (password.length < 8) {
+      toast.error('A senha deve ter pelo menos 8 caracteres');
       return;
     }
 
@@ -34,19 +33,15 @@ export function Register() {
 
     setIsLoading(true);
 
-    // Simular delay de rede
-    setTimeout(() => {
-      const success = register(name, email, password);
-
-      if (success) {
-        toast.success('Conta criada com sucesso!');
-        navigate('/');
-      } else {
-        toast.error('Este email já está cadastrado');
-      }
-
+    try {
+      await register(name, email, password);
+      toast.success('Conta criada com sucesso!');
+      navigate('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao cadastrar usuário');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -96,12 +91,12 @@ export function Register() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                minLength={6}
+                minLength={8}
               />
             </div>
 

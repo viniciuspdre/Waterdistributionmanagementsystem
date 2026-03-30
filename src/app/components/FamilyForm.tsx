@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Switch } from './ui/switch';
 import { ArrowLeft, Plus, Trash2, Users, Droplets } from 'lucide-react';
-import { Person, Cistern } from '../types';
+import { MemberDTO, CisternDTO, FamilyDTO } from '../types';
 import { toast } from 'sonner';
 
 export function FamilyForm() {
@@ -17,18 +17,21 @@ export function FamilyForm() {
   const [familyName, setFamilyName] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [hasRainGutter, setHasRainGutter] = useState(false);
-  const [rainCaptureEfficiency, setRainCaptureEfficiency] = useState('80');
-  const [cisternCaptureArea, setCisternCaptureArea] = useState('50');
-  const [members, setMembers] = useState<Omit<Person, 'id'>[]>([
-    { name: '', age: 0, bedridden: false },
+  const [hasGutterSystem, setHasGutterSystem] = useState(false);
+  const [gutterEfficiencyCoefficient, setGutterEfficiencyCoefficient] = useState('0.8');
+  const [gutterAreaM2, setGutterAreaM2] = useState('50');
+  
+  const [members, setMembers] = useState<MemberDTO[]>([
+    { name: '', age: 0, isBedridden: false },
   ]);
-  const [cisterns, setCisterns] = useState<Omit<Cistern, 'id'>[]>([
-    { capacity: 0, currentVolume: 0 },
+  const [cisterns, setCisterns] = useState<CisternDTO[]>([
+    { capacityLiters: 0, currentLevelLiters: 0 },
   ]);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const addMember = () => {
-    setMembers([...members, { name: '', age: 0, bedridden: false }]);
+    setMembers([...members, { name: '', age: 0, isBedridden: false }]);
   };
 
   const removeMember = (index: number) => {
@@ -37,14 +40,14 @@ export function FamilyForm() {
     }
   };
 
-  const updateMember = (index: number, field: keyof Omit<Person, 'id'>, value: any) => {
+  const updateMember = (index: number, field: keyof MemberDTO, value: any) => {
     const updated = [...members];
     updated[index] = { ...updated[index], [field]: value };
     setMembers(updated);
   };
 
   const addCistern = () => {
-    setCisterns([...cisterns, { capacity: 0, currentVolume: 0 }]);
+    setCisterns([...cisterns, { capacityLiters: 0, currentLevelLiters: 0 }]);
   };
 
   const removeCistern = (index: number) => {
@@ -53,59 +56,57 @@ export function FamilyForm() {
     }
   };
 
-  const updateCistern = (index: number, field: keyof Omit<Cistern, 'id'>, value: number) => {
+  const updateCistern = (index: number, field: keyof CisternDTO, value: number) => {
     const updated = [...cisterns];
     updated[index] = { ...updated[index], [field]: value };
     setCisterns(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validações
+    // Validações básicas
     const validMembers = members.filter((m) => m.name.trim() !== '');
     if (validMembers.length === 0) {
       toast.error('Adicione pelo menos um membro da família');
       return;
     }
 
-    const validCisterns = cisterns.filter((c) => c.capacity > 0);
+    const validCisterns = cisterns.filter((c) => c.capacityLiters > 0);
     if (validCisterns.length === 0) {
       toast.error('Adicione pelo menos uma cisterna com capacidade válida');
       return;
     }
 
-    // Validar que o volume atual não excede a capacidade
     for (let i = 0; i < validCisterns.length; i++) {
-      if (validCisterns[i].currentVolume > validCisterns[i].capacity) {
+      if (validCisterns[i].currentLevelLiters > validCisterns[i].capacityLiters) {
         toast.error(`Cisterna ${i + 1}: Volume atual não pode exceder a capacidade`);
         return;
       }
     }
 
-    const family = {
+    const family: FamilyDTO = {
       name: familyName,
-      cisterns: validCisterns.map((c) => ({
-        ...c,
-        id: crypto.randomUUID(),
-      })),
-      hasRainGutter,
-      rainCaptureEfficiency: hasRainGutter ? parseFloat(rainCaptureEfficiency) : undefined,
-      cisternCaptureArea: hasRainGutter ? parseFloat(cisternCaptureArea) : undefined,
-      coordinates: {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-      },
-      members: validMembers.map((m) => ({
-        ...m,
-        id: crypto.randomUUID(),
-      })),
-      deliveries: [],
+      cisterns: validCisterns,
+      hasGutterSystem,
+      gutterEfficiencyCoefficient: hasGutterSystem ? parseFloat(gutterEfficiencyCoefficient) : null,
+      gutterAreaM2: hasGutterSystem ? parseFloat(gutterAreaM2) : null,
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      members: validMembers,
+      familyStatus: 'NORMAL',
     };
 
-    addFamily(family);
-    toast.success('Família cadastrada com sucesso!');
-    navigate('/');
+    setIsSubmitting(true);
+    try {
+      await addFamily(family);
+      toast.success('Família cadastrada com sucesso!');
+      navigate('/');
+    } catch (error: any) {
+      toast.error('Erro ao cadastrar família: ' + (error.message || 'Desconhecido'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -124,7 +125,6 @@ export function FamilyForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Dados da Família */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Dados da Família</h3>
 
@@ -139,7 +139,6 @@ export function FamilyForm() {
                 />
               </div>
 
-              {/* Cisternas */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2">
@@ -176,9 +175,9 @@ export function FamilyForm() {
                         <Input
                           id={`cistern-capacity-${index}`}
                           type="number"
-                          value={cistern.capacity || ''}
+                          value={cistern.capacityLiters || ''}
                           onChange={(e) =>
-                            updateCistern(index, 'capacity', parseFloat(e.target.value) || 0)
+                            updateCistern(index, 'capacityLiters', parseFloat(e.target.value) || 0)
                           }
                           placeholder="Ex: 16000"
                           min="1"
@@ -193,13 +192,13 @@ export function FamilyForm() {
                         <Input
                           id={`cistern-volume-${index}`}
                           type="number"
-                          value={cistern.currentVolume || ''}
+                          value={cistern.currentLevelLiters || ''}
                           onChange={(e) =>
-                            updateCistern(index, 'currentVolume', parseFloat(e.target.value) || 0)
+                            updateCistern(index, 'currentLevelLiters', parseFloat(e.target.value) || 0)
                           }
                           placeholder="Ex: 8000"
                           min="0"
-                          max={cistern.capacity}
+                          max={cistern.capacityLiters || 999999}
                           required
                         />
                       </div>
@@ -211,49 +210,43 @@ export function FamilyForm() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex items-center space-x-2">
                   <Switch
-                    id="hasRainGutter"
-                    checked={hasRainGutter}
-                    onCheckedChange={setHasRainGutter}
+                    id="hasGutterSystem"
+                    checked={hasGutterSystem}
+                    onCheckedChange={setHasGutterSystem}
                   />
-                  <Label htmlFor="hasRainGutter">Possui sistema de captação por calhas</Label>
+                  <Label htmlFor="hasGutterSystem">Possui sistema de captação por calhas</Label>
                 </div>
               </div>
 
-              {/* Campos de captação de chuva - aparecem apenas se hasRainGutter = true */}
-              {hasRainGutter && (
+              {hasGutterSystem && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
                   <h4 className="font-medium text-blue-900">Configurações de Captação de Chuva</h4>
                   
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="rainCaptureEfficiency">Eficiência de Captação (%)</Label>
+                      <Label htmlFor="gutterEfficiencyCoefficient">Coeficiente de Eficiência (0.01 a 1.0)</Label>
                       <Input
-                        id="rainCaptureEfficiency"
+                        id="gutterEfficiencyCoefficient"
                         type="number"
-                        value={rainCaptureEfficiency}
-                        onChange={(e) => setRainCaptureEfficiency(e.target.value)}
-                        placeholder="Ex: 80"
+                        value={gutterEfficiencyCoefficient}
+                        onChange={(e) => setGutterEfficiencyCoefficient(e.target.value)}
+                        placeholder="Ex: 0.8"
+                        step="0.01"
                         min="0"
-                        max="100"
+                        max="1"
                       />
-                      <p className="text-xs text-blue-700">
-                        Porcentagem da chuva que é captada (padrão: 80%)
-                      </p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="cisternCaptureArea">Área de Captação (m²)</Label>
+                      <Label htmlFor="gutterAreaM2">Área de Captação em Calhas (m²)</Label>
                       <Input
-                        id="cisternCaptureArea"
+                        id="gutterAreaM2"
                         type="number"
-                        value={cisternCaptureArea}
-                        onChange={(e) => setCisternCaptureArea(e.target.value)}
+                        value={gutterAreaM2}
+                        onChange={(e) => setGutterAreaM2(e.target.value)}
                         placeholder="Ex: 50"
                         min="1"
                       />
-                      <p className="text-xs text-blue-700">
-                        Área do telhado/superfície de captação
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -288,7 +281,6 @@ export function FamilyForm() {
               </div>
             </div>
 
-            {/* Membros da Família */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Membros da Família</h3>
@@ -334,9 +326,9 @@ export function FamilyForm() {
                         <div className="flex items-center space-x-2">
                           <Switch
                             id={`member-bedridden-${index}`}
-                            checked={member.bedridden}
+                            checked={member.isBedridden}
                             onCheckedChange={(checked) =>
-                              updateMember(index, 'bedridden', checked)
+                              updateMember(index, 'isBedridden', checked)
                             }
                           />
                           <Label htmlFor={`member-bedridden-${index}`}>Acamado</Label>
@@ -360,10 +352,12 @@ export function FamilyForm() {
             </div>
 
             <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => navigate('/')}>
+              <Button type="button" variant="outline" onClick={() => navigate('/')} disabled={isSubmitting}>
                 Cancelar
               </Button>
-              <Button type="submit">Cadastrar Família</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Cadastrando...' : 'Cadastrar Família'}
+              </Button>
             </div>
           </form>
         </CardContent>

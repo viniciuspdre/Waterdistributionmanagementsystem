@@ -16,23 +16,20 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simular delay de rede
-    setTimeout(() => {
-      const success = login(email, password);
-
-      if (success) {
-        toast.success('Login realizado com sucesso!');
-        navigate('/');
-      } else {
-        toast.error('Email ou senha incorretos');
-      }
-
+    try {
+      await login(email, password);
+      toast.success('Login realizado com sucesso!');
+      navigate('/');
+    } catch (error: any) {
+      //ao invés de Email ou senha incorretos, mostrar algo do tipo "Credenciais inválidas"
+      toast.error(error.message || 'Credenciais inválidas');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (

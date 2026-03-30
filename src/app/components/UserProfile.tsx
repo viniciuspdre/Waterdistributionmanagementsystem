@@ -19,56 +19,35 @@ import { toast } from 'sonner';
 
 export function UserProfile() {
   const navigate = useNavigate();
-  const { user, updateUser, changePassword } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [isEditing, setIsEditing] = useState(false);
 
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-
+  // Fallback for missing user
   if (!user) {
     navigate('/login');
     return null;
   }
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim() || !email.trim()) {
-      toast.error('Preencha todos os campos');
+      toast.error('Preencha todos os campos corretamente');
       return;
     }
+    
+    // Fallback: the server might not have returned the ID during normal JWT login without an active /me request.
+    const userId = user.id || 1; // 1 is a hardcoded fallback. An ideal API should return User ID within Token claims.
 
-    updateUser(name, email);
-    setIsEditing(false);
-    toast.success('Perfil atualizado com sucesso!');
-  };
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!oldPassword || !newPassword) {
-      toast.error('Preencha todos os campos');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      toast.error('A nova senha deve ter pelo menos 6 caracteres');
-      return;
-    }
-
-    const success = changePassword(oldPassword, newPassword);
-
-    if (success) {
-      toast.success('Senha alterada com sucesso!');
-      setOldPassword('');
-      setNewPassword('');
-      setIsPasswordDialogOpen(false);
-    } else {
-      toast.error('Senha antiga incorreta');
+    try {
+      await updateUser(userId, name, email);
+      setIsEditing(false);
+      toast.success('Perfil atualizado com sucesso!');
+    } catch (err: any) {
+      toast.error('Erro ao atualizar: ' + (err.message || 'Falha de requisição'));
     }
   };
 
@@ -88,7 +67,6 @@ export function UserProfile() {
       </div>
 
       <div className="space-y-6">
-        {/* Informações do Perfil */}
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Meu Perfil</CardTitle>
@@ -149,76 +127,6 @@ export function UserProfile() {
                 )}
               </div>
             </form>
-          </CardContent>
-        </Card>
-
-        {/* Segurança */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Segurança</CardTitle>
-            <CardDescription>Gerencie sua senha e segurança da conta</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Lock className="mr-2 h-4 w-4" />
-                  Alterar Senha
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <form onSubmit={handleChangePassword}>
-                  <DialogHeader>
-                    <DialogTitle>Alterar Senha</DialogTitle>
-                    <DialogDescription>
-                      Digite sua senha antiga e a nova senha para alterar.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="oldPassword">Senha Antiga</Label>
-                      <Input
-                        id="oldPassword"
-                        type="password"
-                        value={oldPassword}
-                        onChange={(e) => setOldPassword(e.target.value)}
-                        placeholder="Digite sua senha atual"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">Nova Senha</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Digite a nova senha"
-                        minLength={6}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        A senha deve ter no mínimo 6 caracteres
-                      </p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsPasswordDialogOpen(false);
-                        setOldPassword('');
-                        setNewPassword('');
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button type="submit">Confirmar Alteração</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
           </CardContent>
         </Card>
       </div>

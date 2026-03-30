@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useData } from '../context/DataContext';
 import { Button } from './ui/button';
@@ -13,28 +13,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { calculateCurrentWaterLevel, calculateNextDeliveryDate } from '../utils/waterCalculations';
+import { familyService } from '../services/familyService';
 
 export function FamilyList() {
   const navigate = useNavigate();
-  const { families, settings } = useData();
+  const { families, loadingFamilies, fetchFamilies } = useData();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'urgency' | 'name' | 'level-asc' | 'level-desc'>('urgency');
 
-  const getFamilyStatus = (familyId: string) => {
-    const family = families.find((f) => f.id === familyId);
-    if (!family) return null;
+  useEffect(() => {
+    fetchFamilies();
+  }, [fetchFamilies]);
 
-    const { percentageFull } = calculateCurrentWaterLevel(family, settings);
-    const { shouldDeliver } = calculateNextDeliveryDate(family, settings);
-
-    if (shouldDeliver || percentageFull < 20) {
-      return { label: 'Urgente', variant: 'destructive' as const };
-    } else if (percentageFull < 50) {
-      return { label: 'Atenção', variant: 'default' as const };
+  const getFamilyStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'CRITICO':
+      case 'URGENTE':
+        return { label: 'Urgente', variant: 'destructive' as const };
+      case 'ALERTA': // Assumindo caso haja status intermediário
+        return { label: 'Atenção', variant: 'default' as const };
+      case 'NORMAL':
+      default:
+        return { label: 'Normal', variant: 'secondary' as const };
     }
-    return { label: 'Normal', variant: 'secondary' as const };
   };
 
   const filteredAndSortedFamilies = useMemo(() => {
@@ -49,24 +51,26 @@ export function FamilyList() {
         return a.name.localeCompare(b.name);
       }
 
-      if (sortBy === 'level-asc' || sortBy === 'level-desc') {
-        const levelA = calculateCurrentWaterLevel(a, settings).percentageFull;
-        const levelB = calculateCurrentWaterLevel(b, settings).percentageFull;
-        return sortBy === 'level-asc' ? levelA - levelB : levelB - levelA;
-      }
+      const totalCapA = a.cisterns.reduce((sum, c) => sum + c.capacityLiters, 0) || 1;
+      const totalLvlA = a.cisterns.reduce((sum, c) => sum + c.currentLevelLiters, 0);
+      const percA = (totalLvlA / totalCapA) * 100;
 
-      // Ordenação por urgência (padrão)
-      const statusA = getFamilyStatus(a.id);
-      const statusB = getFamilyStatus(b.id);
+      const totalCapB = b.cisterns.reduce((sum, c) => sum + c.capacityLiters, 0) || 1;
+      const totalLvlB = b.cisterns.reduce((sum, c) => sum + c.currentLevelLiters, 0);
+      const percB = (totalLvlB / totalCapB) * 100;
 
-      if (statusA?.variant === 'destructive' && statusB?.variant !== 'destructive') return -1;
-      if (statusA?.variant !== 'destructive' && statusB?.variant === 'destructive') return 1;
+      if (sortBy === 'level-asc') return percA - percB;
+      if (sortBy === 'level-desc') return percB - percA;
 
-      return a.name.localeCompare(b.name);
+      // Ordenação por urgência baseada no status e dias restantes
+      if (a.familyStatus === 'CRITICO' && b.familyStatus !== 'CRITICO') return -1;
+      if (a.familyStatus !== 'CRITICO' && b.familyStatus === 'CRITICO') return 1;
+
+      return (a.remainingDays || 999) - (b.remainingDays || 999);
     });
 
     return sorted;
-  }, [families, searchTerm, sortBy, settings]);
+  }, [families, searchTerm, sortBy]);
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -88,7 +92,9 @@ export function FamilyList() {
         </div>
       </div>
 
-      {families.length === 0 ? (
+      {loadingFamilies ? (
+         <div className="flex justify-center items-center py-12">Carregando famílias...</div>
+      ) : families.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent className="pt-6">
             <Droplets className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -162,15 +168,13 @@ export function FamilyList() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredAndSortedFamilies.map((family) => {
-                const status = getFamilyStatus(family.id);
-                const { percentageFull, daysUntilEmpty } = calculateCurrentWaterLevel(
-                  family,
-                  settings
-                );
-                const { daysUntilDelivery } = calculateNextDeliveryDate(family, settings);
-
-                // Verificar se a entrega está próxima (7 dias ou menos)
-                const deliverySoon = daysUntilDelivery > 0 && daysUntilDelivery <= 7 && daysUntilEmpty > 3;
+                const badge = getFamilyStatusBadge(family.familyStatus);
+                const totalCapacity = family.cisterns.reduce((sum, c) => sum + c.capacityLiters, 0);
+                const currentLevel = family.cisterns.reduce((sum, c) => sum + c.currentLevelLiters, 0);
+                const percentageFull = totalCapacity ? Math.round((currentLevel / totalCapacity) * 100) : 0;
+                
+                const daysUntilEmpty = family.remainingDays ?? 0;
+                const nextDateRaw = family.nextDeliveryDate;
 
                 return (
                   <Card
@@ -181,12 +185,12 @@ export function FamilyList() {
                     <CardHeader>
                       <div className="flex justify-between items-start mb-2">
                         <CardTitle className="text-xl">{family.name}</CardTitle>
-                        {status && <Badge variant={status.variant}>{status.label}</Badge>}
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
                       </div>
                       <CardDescription className="flex items-center gap-2">
                         <MapPin className="h-3 w-3" />
-                        {family.coordinates.latitude.toFixed(4)},{' '}
-                        {family.coordinates.longitude.toFixed(4)}
+                        {family.latitude.toFixed(4)},{' '}
+                        {family.longitude.toFixed(4)}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -200,7 +204,7 @@ export function FamilyList() {
                             <p className="text-xs text-muted-foreground">Capacidade</p>
                             <div className="flex items-center gap-2 text-sm">
                               <Droplets className="h-4 w-4 text-muted-foreground" />
-                              <span>{family.cisterns.reduce((sum, c) => sum + c.capacity, 0)}L</span>
+                              <span>{totalCapacity}L</span>
                             </div>
                           </div>
                         </div>
@@ -231,16 +235,16 @@ export function FamilyList() {
                           </div>
                         )}
 
-                        {deliverySoon && (
+                        {nextDateRaw && (
                           <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
                             <Calendar className="h-4 w-4 text-blue-600" />
                             <span className="text-sm text-blue-700 font-medium">
-                              Entrega em {daysUntilDelivery} {daysUntilDelivery === 1 ? 'dia' : 'dias'}
+                              Próx entrega: {new Date(nextDateRaw).toLocaleDateString('pt-BR')}
                             </span>
                           </div>
                         )}
 
-                        {family.hasRainGutter && (
+                        {family.hasGutterSystem && (
                           <Badge variant="outline" className="text-xs">
                             Sistema de captação
                           </Badge>
