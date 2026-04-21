@@ -1,0 +1,20 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Frontend Containers - Waterdistributionmanagementsystem
+
+Person(user, "User", "Uses the application UI.")
+System_Ext(backendApi, "Backend API", "External HTTP API reached from src/app/services/api.ts.")
+
+System_Boundary(frontendBoundary, "Frontend App") {
+  Container(browser, "Browser", "Web Browser", "Hosts and runs the React application.")
+  Container(frontendApp, "Frontend App", "React, React Router", "Single-page application rooted at src/app/App.tsx and src/app/routes.tsx.")
+}
+
+Rel(user, browser, "Interacts with")
+Rel(browser, frontendApp, "Loads")
+Rel(frontendApp, backendApi, "Calls REST endpoints", "fetch / JSON")
+
+@enduml

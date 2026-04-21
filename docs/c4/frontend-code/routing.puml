@@ -1,0 +1,40 @@
+@startuml
+title Frontend Code - Routing
+top to bottom direction
+skinparam componentStyle rectangle
+
+component "App" as App
+component "routes.tsx" as Routes
+component "RootLayout" as RootLayout
+component "ProtectedRoute" as ProtectedRoute
+component "AppLayout" as AppLayout
+component "Login" as Login
+component "Register" as Register
+component "FamilyList" as FamilyList
+component "FamilyForm" as FamilyForm
+component "FamilyDetails" as FamilyDetails
+component "FamilyEdit" as FamilyEdit
+component "Settings" as Settings
+component "UserProfile" as UserProfile
+component "AuthProvider" as AuthProvider
+component "DataProvider" as DataProvider
+
+App --> Routes : RouterProvider(router)
+Routes --> RootLayout : "/"
+RootLayout --> AuthProvider : wraps all routes
+
+RootLayout --> Login : "/login"
+RootLayout --> Register : "/registro"
+RootLayout --> ProtectedRoute : protected branch
+
+ProtectedRoute --> AppLayout : authenticated users
+AppLayout --> DataProvider : wraps app pages
+
+AppLayout --> FamilyList : index "/"
+AppLayout --> FamilyForm : "/nova-familia"
+AppLayout --> FamilyDetails : "/familia/:id"
+AppLayout --> FamilyEdit : "/familia/:id/editar"
+AppLayout --> Settings : "/configuracoes"
+AppLayout --> UserProfile : "/perfil"
+
+@enduml

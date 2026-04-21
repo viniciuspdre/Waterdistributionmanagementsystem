@@ -1,0 +1,23 @@
+@startuml
+title Sequence - Family Creation Flow
+
+actor User
+participant FamilyForm
+participant DataContext
+participant familyService
+participant api
+database "Backend API" as BackendApi
+
+User -> FamilyForm : submit new family form
+FamilyForm -> DataContext : addFamily(family)
+DataContext -> familyService : createFamily(family)
+familyService -> api : apiFetch('/families')
+api -> BackendApi : POST /families
+BackendApi --> api : FamilyDTO
+api --> familyService : FamilyDTO
+familyService --> DataContext : created family
+DataContext -> DataContext : append family to families state
+DataContext --> FamilyForm : success
+FamilyForm -> User : toast + navigate('/')
+
+@enduml

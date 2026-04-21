@@ -1,0 +1,16 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Frontend Context - Waterdistributionmanagementsystem
+
+Person(user, "User", "Uses the React frontend in the browser.")
+
+System(frontend, "Frontend App", "React single-page application for water distribution management.")
+System_Ext(backendApi, "Backend API", "HTTP API consumed through src/app/services/api.ts.")
+
+Rel(user, frontend, "Uses", "Browser")
+Rel(frontend, backendApi, "Calls REST endpoints", "fetch / JSON")
+
+@enduml

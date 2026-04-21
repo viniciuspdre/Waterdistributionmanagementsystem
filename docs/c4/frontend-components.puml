@@ -1,0 +1,59 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Frontend Components - Waterdistributionmanagementsystem
+
+Person(user, "User", "Uses the React frontend.")
+System_Ext(backendApi, "Backend API", "HTTP API at the base URL defined in src/app/services/api.ts.")
+
+Container_Boundary(frontendApp, "Frontend App") {
+  Component(appRoot, "App.tsx", "Application Root", "Initializes RouterProvider and global toast UI.")
+  Component(routing, "routes.tsx", "Routing Component", "Defines RootLayout, AppLayout, protected routes, and page composition.")
+
+  Component(authContext, "AuthContext.tsx", "State Management", "Maintains authenticated user state and exposes login, register, logout, and updateUser actions.")
+  Component(dataContext, "DataContext.tsx", "State Management", "Loads and manages families, settings, rainfall data, and water deliveries.")
+
+  Component(authScreens, "Login.tsx + Register.tsx + Header.tsx + UserProfile.tsx + ProtectedRoute.tsx", "Authentication UI Components", "Authenticate the user, guard routes, show current user state, and update profile.")
+  Component(familyScreens, "FamilyList.tsx + FamilyForm.tsx + FamilyEdit.tsx + FamilyDetails.tsx + Settings.tsx", "Domain UI Components", "Manage families, deliveries, system settings, and rainfall data.")
+
+  Component(authService, "authService.ts", "Service", "Sends login requests.")
+  Component(userService, "userService.ts", "Service", "Creates and updates users.")
+  Component(familyService, "familyService.ts", "Service", "Creates, updates, fetches, and lists families.")
+  Component(systemSettingsService, "systemSettingsService.ts", "Service", "Fetches and updates system settings.")
+  Component(monthlyRainfallService, "monthlyRainfallService.ts", "Service", "Saves and fetches rainfall data by year.")
+  Component(waterDeliveryService, "waterDeliveryService.ts", "Service", "Saves deliveries and queries deliveries by family and year.")
+  Component(apiClient, "api.ts", "API Client", "Wraps fetch, attaches Bearer token, dispatches auth:logout on 401/403.")
+}
+
+Rel(user, appRoot, "Uses", "Browser")
+
+Rel(appRoot, routing, "Bootstraps")
+Rel(routing, authContext, "Wraps routes with AuthProvider")
+Rel(routing, dataContext, "Wraps protected app routes with DataProvider")
+Rel(routing, authScreens, "Routes to and composes")
+Rel(routing, familyScreens, "Routes to and composes")
+
+Rel(authScreens, authContext, "Reads auth state and invokes auth actions")
+Rel(familyScreens, dataContext, "Reads domain state and invokes data actions")
+Rel(familyScreens, waterDeliveryService, "Directly queries delivery history in FamilyDetails.tsx")
+
+Rel(authContext, authService, "Uses for login")
+Rel(authContext, userService, "Uses for register and profile updates")
+
+Rel(dataContext, familyService, "Uses for family loading and mutation")
+Rel(dataContext, systemSettingsService, "Uses for system settings")
+Rel(dataContext, monthlyRainfallService, "Uses for rainfall data")
+Rel(dataContext, waterDeliveryService, "Uses for water delivery creation")
+
+Rel(authService, apiClient, "Uses")
+Rel(userService, apiClient, "Uses")
+Rel(familyService, apiClient, "Uses")
+Rel(systemSettingsService, apiClient, "Uses")
+Rel(monthlyRainfallService, apiClient, "Uses")
+Rel(waterDeliveryService, apiClient, "Uses")
+
+Rel(apiClient, backendApi, "Calls REST endpoints", "fetch / JSON")
+
+@enduml

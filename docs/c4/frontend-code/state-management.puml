@@ -1,0 +1,33 @@
+@startuml
+title Frontend Code - State Management
+left to right direction
+skinparam componentStyle rectangle
+
+component "AuthProvider\n(AuthContext)" as AuthProvider
+component "DataProvider\n(DataContext)" as DataProvider
+
+component "Login" as Login
+component "Register" as Register
+component "ProtectedRoute" as ProtectedRoute
+component "Header" as Header
+component "UserProfile" as UserProfile
+
+component "FamilyList" as FamilyList
+component "FamilyForm" as FamilyForm
+component "FamilyEdit" as FamilyEdit
+component "FamilyDetails" as FamilyDetails
+component "Settings" as Settings
+
+Login ..> AuthProvider : consume login()
+Register ..> AuthProvider : consume register()
+ProtectedRoute ..> AuthProvider : consume user
+Header ..> AuthProvider : consume user, logout()
+UserProfile ..> AuthProvider : consume user, updateUser()
+
+FamilyList ..> DataProvider : consume families,\nloadingFamilies, fetchFamilies()
+FamilyForm ..> DataProvider : consume addFamily()
+FamilyEdit ..> DataProvider : consume families,\nupdateFamily()
+FamilyDetails ..> DataProvider : consume families,\naddWaterDelivery(),\ndeleteFamilyDataLocally()
+Settings ..> DataProvider : consume settings,\nrainfallData,\nupdateSettings(), addRainfallData()
+
+@enduml

@@ -1,0 +1,23 @@
+@startuml
+title Sequence - Login Flow
+
+actor User
+participant Login
+participant AuthContext
+participant authService
+participant api
+database "Backend API" as BackendApi
+
+User -> Login : submit email/password
+Login -> AuthContext : login(email, password)
+AuthContext -> authService : login({ email, password })
+authService -> api : apiFetch('/auth/login')
+api -> BackendApi : POST /auth/login
+BackendApi --> api : token
+api --> authService : TokenDTO
+authService --> AuthContext : token
+AuthContext -> AuthContext : store hf_token and currentUserProfile
+AuthContext --> Login : success
+Login -> User : navigate('/')
+
+@enduml
