@@ -1,0 +1,29 @@
+@startuml
+title Frontend Code - Family Module
+left to right direction
+skinparam componentStyle rectangle
+
+component "FamilyList" as FamilyList
+component "FamilyForm" as FamilyForm
+component "FamilyEdit" as FamilyEdit
+component "FamilyDetails" as FamilyDetails
+component "DataContext" as DataContext
+component "familyService" as FamilyService
+component "waterDeliveryService" as WaterDeliveryService
+component "api" as ApiClient
+database "Backend API" as BackendApi
+
+FamilyList ..> DataContext : useData()\nfamilies, fetchFamilies()
+FamilyForm ..> DataContext : useData()\naddFamily()
+FamilyEdit ..> DataContext : useData()\nfamilies, updateFamily()
+FamilyDetails ..> DataContext : useData()\nfamilies, addWaterDelivery(),\ndeleteFamilyDataLocally()
+FamilyDetails --> WaterDeliveryService : findByYearAndFamilyId()
+
+DataContext --> FamilyService : findAllFamilies()\ncreateFamily()\nupdateFamily()
+DataContext --> WaterDeliveryService : save()
+
+FamilyService --> ApiClient : apiFetch('/families')
+WaterDeliveryService --> ApiClient : apiFetch('/water-deliveries')
+ApiClient --> BackendApi : HTTP/JSON
+
+@enduml

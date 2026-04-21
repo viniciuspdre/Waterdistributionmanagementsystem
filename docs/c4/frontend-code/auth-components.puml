@@ -1,0 +1,28 @@
+@startuml
+title Frontend Code - Auth Module
+left to right direction
+skinparam componentStyle rectangle
+
+component "Login" as Login
+component "Register" as Register
+component "ProtectedRoute" as ProtectedRoute
+component "Header" as Header
+component "AuthContext" as AuthContext
+component "authService" as AuthService
+component "userService" as UserService
+component "api" as ApiClient
+database "Backend API" as BackendApi
+
+Login ..> AuthContext : useAuth()
+Register ..> AuthContext : useAuth()
+ProtectedRoute ..> AuthContext : useAuth()
+Header ..> AuthContext : useAuth()
+
+AuthContext --> AuthService : login()
+AuthContext --> UserService : createUser()\nupdateUser()
+
+AuthService --> ApiClient : apiFetch('/auth/login')
+UserService --> ApiClient : apiFetch('/users')
+ApiClient --> BackendApi : HTTP/JSON
+
+@enduml
