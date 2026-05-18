@@ -7,7 +7,6 @@ import {waterDeliveryService} from '../services/waterDeliveryService';
 interface DataContextType {
     families: FamilyDTO[];
     settings: SystemSettingsDTO;
-    rainfallData: MonthlyRainfallDTO[];
     loadingFamilies: boolean;
     fetchFamilies: () => Promise<void>;
     addFamily: (family: FamilyDTO) => Promise<void>;
@@ -15,7 +14,6 @@ interface DataContextType {
     deleteFamilyDataLocally: (id: number) => void;
     addWaterDelivery: (delivery: WaterDeliveryDTO) => Promise<void>;
     updateSettings: (settings: SystemSettingsDTO) => Promise<void>;
-    addRainfallData: (data: MonthlyRainfallDTO) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -27,7 +25,6 @@ const defaultSettings: SystemSettingsDTO = {
 export function DataProvider({children}: { children: ReactNode }) {
     const [families, setFamilies] = useState<FamilyDTO[]>([]);
     const [settings, setSettings] = useState<SystemSettingsDTO>(defaultSettings);
-    const [rainfallData, setRainfallData] = useState<MonthlyRainfallDTO[]>([]);
     const [loadingFamilies, setLoadingFamilies] = useState(false);
 
     const fetchFamilies = useCallback(async () => {
@@ -94,7 +91,6 @@ export function DataProvider({children}: { children: ReactNode }) {
             value={{
                 families,
                 settings,
-                rainfallData,
                 loadingFamilies,
                 fetchFamilies,
                 addFamily,

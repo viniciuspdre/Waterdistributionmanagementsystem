@@ -208,51 +208,6 @@ export function FamilyForm() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="hasGutterSystem"
-                    checked={hasGutterSystem}
-                    onCheckedChange={setHasGutterSystem}
-                  />
-                  <Label htmlFor="hasGutterSystem">Possui sistema de captação por calhas</Label>
-                </div>
-              </div>
-
-              {hasGutterSystem && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
-                  <h4 className="font-medium text-blue-900">Configurações de Captação de Chuva</h4>
-                  
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="gutterEfficiencyCoefficient">Coeficiente de Eficiência (0.01 a 1.0)</Label>
-                      <Input
-                        id="gutterEfficiencyCoefficient"
-                        type="number"
-                        value={gutterEfficiencyCoefficient}
-                        onChange={(e) => setGutterEfficiencyCoefficient(e.target.value)}
-                        placeholder="Ex: 0.8"
-                        step="0.01"
-                        min="0"
-                        max="1"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gutterAreaM2">Área de Captação em Calhas (m²)</Label>
-                      <Input
-                        id="gutterAreaM2"
-                        type="number"
-                        value={gutterAreaM2}
-                        onChange={(e) => setGutterAreaM2(e.target.value)}
-                        placeholder="Ex: 50"
-                        min="1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="latitude">Latitude *</Label>
                   <Input

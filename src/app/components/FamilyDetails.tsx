@@ -31,30 +31,75 @@ import {
   AlertDialogTrigger,
 } from './ui/alert-dialog';
 import { toast } from 'sonner';
+import { familyService } from '../services/familyService';
 import { waterDeliveryService } from '../services/waterDeliveryService';
-import { WaterDeliveryDTO } from '../types';
+import { FamilyDTO, WaterDeliveryDTO } from '../types';
 
 export function FamilyDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { families, addWaterDelivery, deleteFamilyDataLocally } = useData();
+  const { addWaterDelivery, deleteFamilyDataLocally } = useData();
 
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
   const [deliveryVolume, setDeliveryVolume] = useState('');
   const [volumeSent, setVolumeSent] = useState('');
-  
+  const [family, setFamily] = useState<FamilyDTO | null>(null);
+  const [loadingFamily, setLoadingFamily] = useState(true);
   const [deliveries, setDeliveries] = useState<WaterDeliveryDTO[]>([]);
 
   const familyIdNum = Number(id);
-  const family = families.find((f) => f.id === familyIdNum);
 
   useEffect(() => {
-    if (familyIdNum) {
-      waterDeliveryService.findByYearAndFamilyId(new Date().getFullYear(), familyIdNum)
-        .then(setDeliveries)
-        .catch(console.error);
+    if (!id || Number.isNaN(familyIdNum)) {
+      setLoadingFamily(false);
+      setFamily(null);
+      return;
     }
-  }, [familyIdNum]);
+
+    let cancelled = false;
+
+    const loadFamilyData = async () => {
+      setLoadingFamily(true);
+      try {
+        const [familyData, deliveriesData] = await Promise.all([
+          familyService.findFamilyById(familyIdNum),
+          waterDeliveryService.findByYearAndFamilyId(new Date().getFullYear(), familyIdNum),
+        ]);
+        if (!cancelled) {
+          setFamily(familyData);
+          setDeliveries(deliveriesData);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setFamily(null);
+          setDeliveries([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFamily(false);
+        }
+      }
+    };
+
+    loadFamilyData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, familyIdNum]);
+
+  if (loadingFamily) {
+    return (
+      <div className="container mx-auto p-6 max-w-4xl">
+        <Card className="text-center py-12">
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">Carregando família...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!family) {
     return (
@@ -114,9 +159,12 @@ export function FamilyDetails() {
       toast.success('Entrega de água registrada!');
       setDeliveryVolume('');
       setVolumeSent('');
-      
-      // Reload deliveries
-      const updatedDels = await waterDeliveryService.findByYearAndFamilyId(new Date().getFullYear(), familyIdNum);
+
+      const [updatedFamily, updatedDels] = await Promise.all([
+        familyService.findFamilyById(familyIdNum),
+        waterDeliveryService.findByYearAndFamilyId(new Date().getFullYear(), familyIdNum),
+      ]);
+      setFamily(updatedFamily);
       setDeliveries(updatedDels);
     } catch (e: any) {
       toast.error(e.message || 'Erro ao registrar entrega');
