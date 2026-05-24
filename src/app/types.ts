@@ -51,11 +51,38 @@ export interface MonthlyRainfallDTO {
   rainfallMM: number;
 }
 
+export type UserRole = 'ADMIN' | 'USER';
+
+export interface PermissionDTO {
+  id?: number;
+  name: string;
+  label: string;
+}
+
+export interface RoleDTO {
+  id?: number;
+  name: string;
+  permissions?: PermissionDTO[];
+}
+
+export interface CreateRoleDTO {
+  name: string;
+  permissionIds?: number[];
+  permissions?: PermissionDTO[];
+}
+
+/** @deprecated Use RoleDTO */
+export type CargoDTO = RoleDTO;
+
 export interface UserDTO {
   id?: number;
   name: string;
   email: string;
   password?: string;
+  role?: UserRole;
+  cargoId?: number;
+  cargoName?: string;
+  createdAt?: string;
 }
 
 export interface LoginDTO {

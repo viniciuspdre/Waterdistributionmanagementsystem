@@ -3,20 +3,19 @@ import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './components/Login';
-import { Register } from './components/Register';
 import { FamilyList } from './components/FamilyList';
 import { FamilyForm } from './components/FamilyForm';
 import { FamilyDetails } from './components/FamilyDetails';
 import { FamilyEdit } from './components/FamilyEdit';
 import { Settings } from './components/Settings';
 import { UserProfile } from './components/UserProfile';
+import { UserManagement } from './components/UserManagement';
 import { Header } from './components/Header';
 import { Toaster } from './components/ui/sonner';
 
 function RootLayout() {
   return (
     <AuthProvider>
-      <Toaster />
       <Outlet />
     </AuthProvider>
   );
@@ -52,12 +51,12 @@ export const router = createBrowserRouter([
               { path: 'familia/:id/editar', Component: FamilyEdit },
               { path: 'configuracoes', Component: Settings },
               { path: 'perfil', Component: UserProfile },
+              { path: 'usuarios', Component: UserManagement },
             ],
           },
         ],
       },
       { path: 'login', Component: Login },
-      { path: 'registro', Component: Register },
     ],
   },
 ]);

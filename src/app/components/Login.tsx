@@ -76,18 +76,6 @@ export function Login() {
               {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Não tem uma conta?{' '}
-              <button
-                onClick={() => navigate('/registro')}
-                className="text-blue-600 hover:underline font-medium"
-              >
-                Cadastre-se
-              </button>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -6,7 +6,6 @@ import { UserDTO } from '../types';
 interface AuthContextType {
   user: UserDTO | null;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (id: number, name: string, email: string) => Promise<void>;
 }
@@ -35,17 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('auth:logout', handleLogout);
     };
   }, []);
-
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    try {
-      const newUser = await userService.createUser({ name, email, password });
-      // Faz login automático após criar conta
-      return await login(email, password);
-    } catch (error) {
-      console.error('Registration failed:', error);
-      throw error;
-    }
-  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -85,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

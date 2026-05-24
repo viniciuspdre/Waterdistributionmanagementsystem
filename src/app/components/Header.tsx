@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function Header() {
@@ -89,6 +89,10 @@ export function Header() {
               <DropdownMenuItem onClick={() => navigate('/perfil')}>
                 <User className="mr-2 h-4 w-4" />
                 Meu Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/usuarios')}>
+                <Users className="mr-2 h-4 w-4" />
+                Gerenciar Usuários
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

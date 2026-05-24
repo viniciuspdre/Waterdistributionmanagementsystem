@@ -1,17 +1,82 @@
 import { apiFetch } from './api';
-import { UserDTO } from '../types';
+import { CreateRoleDTO, PageResponse, PermissionDTO, RoleDTO, UserDTO, UserRole } from '../types';
+
+const USER_MANAGEMENT_BASE = '/user-management';
+const ROLES_BASE = `${USER_MANAGEMENT_BASE}/roles`;
+
+async function parseListResponse<T>(response: PageResponse<T> | T[]): Promise<T[]> {
+  if (Array.isArray(response)) {
+    return response;
+  }
+  return response.content;
+}
 
 export const userService = {
-  createUser: (data: UserDTO): Promise<UserDTO> => {
-    return apiFetch<UserDTO>('/users', {
+  findAllUsers: async (): Promise<UserDTO[]> => {
+    const response = await apiFetch<PageResponse<UserDTO> | UserDTO[]>(USER_MANAGEMENT_BASE);
+    return parseListResponse(response);
+  },
+
+  findAllCargos: async (): Promise<RoleDTO[]> => {
+    const response = await apiFetch<PageResponse<RoleDTO> | RoleDTO[]>(ROLES_BASE);
+    return parseListResponse(response);
+  },
+
+  findAllPermissions: (): Promise<PermissionDTO[]> => {
+    return apiFetch<PermissionDTO[]>(`${USER_MANAGEMENT_BASE}/permissions`);
+  },
+
+  createCargo: (data: CreateRoleDTO): Promise<RoleDTO> => {
+    return apiFetch<RoleDTO>(`${USER_MANAGEMENT_BASE}/create-role`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
-  updateUser: (id: number, data: UserDTO): Promise<UserDTO> => {
+
+  updateCargo: (id: number, data: RoleDTO): Promise<RoleDTO> => {
+    return apiFetch<RoleDTO>(`${ROLES_BASE}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...data, id }),
+    });
+  },
+
+  deleteCargo: (id: number): Promise<void> => {
+    return apiFetch<void>(`${ROLES_BASE}/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  createUser: (data: UserDTO): Promise<UserDTO> => {
+    return apiFetch<UserDTO>(USER_MANAGEMENT_BASE, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateUser: (id: number, data: Partial<UserDTO>): Promise<UserDTO> => {
     return apiFetch<UserDTO>(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  updateUserRole: (id: number, role: UserRole): Promise<UserDTO> => {
+    return apiFetch<UserDTO>(`${USER_MANAGEMENT_BASE}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  updateUserCargo: (id: number, cargoId: number): Promise<UserDTO> => {
+    return apiFetch<UserDTO>(`${USER_MANAGEMENT_BASE}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ cargoId }),
+    });
+  },
+
+  deleteUser: (id: number): Promise<void> => {
+    return apiFetch<void>(`${USER_MANAGEMENT_BASE}/${id}`, {
+      method: 'DELETE',
     });
   },
 };
