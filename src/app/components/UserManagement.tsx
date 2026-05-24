@@ -100,6 +100,7 @@ function isAdminCargo(cargoName?: string, role?: UserRole) {
 }
 
 function resolveUserCargoId(user: UserDTO, cargos: RoleDTO[]): number | undefined {
+    if (user.roleId != null) return user.roleId;
     if (user.cargoId != null) return user.cargoId;
     if (user.role === 'ADMIN') return cargos.find((c) => c.name.toLowerCase() === 'admin')?.id;
     if (user.role === 'USER') return cargos.find((c) => c.name.toLowerCase() === 'usuario')?.id;
@@ -285,8 +286,10 @@ export function UserManagement() {
             setCargos((list) => list.filter((c) => c.id !== cargoToDelete.id));
             toast.success('Cargo removido');
             setCargoToDelete(null);
-        } catch {
-            toast.error('Erro ao remover cargo');
+        } catch (err: unknown) {
+            const message =
+                err instanceof Error ? err.message : 'Erro ao remover cargo';
+            toast.error(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -402,7 +405,6 @@ export function UserManagement() {
         }
 
         const cargo = cargos.find((c) => c.id === newCargoId);
-        const role: UserRole = cargo?.name.toLowerCase() === 'admin' ? 'ADMIN' : 'USER';
 
         setIsSubmitting(true);
         try {
@@ -410,12 +412,16 @@ export function UserManagement() {
                 name: newName.trim(),
                 email: newEmail.trim(),
                 password: newPassword,
-                cargoId: newCargoId,
-                role,
+                roleId: newCargoId,
             });
             setUsers((list) => [
                 ...list,
-                {...created, cargoId: newCargoId, cargoName: cargo?.name, role},
+                {
+                    ...created,
+                    roleId: created.roleId ?? newCargoId,
+                    cargoId: created.roleId ?? newCargoId,
+                    cargoName: created.cargoName ?? cargo?.name,
+                },
             ]);
             toast.success('Usuário adicionado com sucesso');
             setAddUserDialogOpen(false);

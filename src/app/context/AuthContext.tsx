@@ -1,11 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authService } from '../services/authService';
+import { authService, FirstAccessRequiredError } from '../services/authService';
 import { userService } from '../services/userService';
 import { UserDTO } from '../types';
 
 interface AuthContextType {
   user: UserDTO | null;
   login: (email: string, password: string) => Promise<boolean>;
+  completeFirstAccess: (
+    userId: number,
+    newPassword: string,
+    email: string,
+    userName?: string,
+  ) => Promise<void>;
   logout: () => void;
   updateUser: (id: number, name: string, email: string) => Promise<void>;
 }
@@ -35,22 +41,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const persistSession = (token: string, profile: UserDTO) => {
+    localStorage.setItem('hf_token', token);
+    setUser(profile);
+    localStorage.setItem('currentUserProfile', JSON.stringify(profile));
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response = await authService.login({ email, password });
-      localStorage.setItem('hf_token', response.token);
-      
-      // Salvar um perfil básico para a UI, pois a API retorna apenas o Token.
-      // Em produção, leríamos os claims do JWT.
-      const userProfile: UserDTO = { name: email.split('@')[0], email }; 
-      setUser(userProfile);
-      localStorage.setItem('currentUserProfile', JSON.stringify(userProfile));
-      
+      persistSession(response.token, {
+        name: email.split('@')[0],
+        email,
+      });
       return true;
     } catch (error) {
+      if (error instanceof FirstAccessRequiredError) {
+        throw error;
+      }
       console.error('Login failed:', error);
       throw error;
     }
+  };
+
+  const completeFirstAccess = async (
+    userId: number,
+    newPassword: string,
+    email: string,
+    userName?: string,
+  ) => {
+    const response = await authService.changePassword({ userId, newPassword });
+    persistSession(response.token, {
+      id: userId,
+      name: userName ?? email.split('@')[0],
+      email,
+    });
   };
 
   const logout = () => {
@@ -73,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, completeFirstAccess, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

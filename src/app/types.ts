@@ -80,6 +80,7 @@ export interface UserDTO {
   email: string;
   password?: string;
   role?: UserRole;
+  roleId?: number;
   cargoId?: number;
   cargoName?: string;
   createdAt?: string;
@@ -92,6 +93,16 @@ export interface LoginDTO {
 
 export interface TokenDTO {
   token: string;
+}
+
+export interface FirstAccessDTO {
+  userId: number;
+  message: string;
+}
+
+export interface ChangePasswordDTO {
+  userId: number;
+  newPassword: string;
 }
 
 // Representação de resposta paginada do Spring Data (Page<T>)

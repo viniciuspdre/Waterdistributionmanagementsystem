@@ -2,6 +2,7 @@ import { apiFetch } from './api';
 import { CreateRoleDTO, PageResponse, PermissionDTO, RoleDTO, UserDTO, UserRole } from '../types';
 
 const USER_MANAGEMENT_BASE = '/user-management';
+const USERS_BASE = '/users';
 const ROLES_BASE = `${USER_MANAGEMENT_BASE}/roles`;
 
 async function parseListResponse<T>(response: PageResponse<T> | T[]): Promise<T[]> {
@@ -47,14 +48,14 @@ export const userService = {
   },
 
   createUser: (data: UserDTO): Promise<UserDTO> => {
-    return apiFetch<UserDTO>(USER_MANAGEMENT_BASE, {
+    return apiFetch<UserDTO>(USERS_BASE, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   updateUser: (id: number, data: Partial<UserDTO>): Promise<UserDTO> => {
-    return apiFetch<UserDTO>(`/users/${id}`, {
+    return apiFetch<UserDTO>(`${USERS_BASE}/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });

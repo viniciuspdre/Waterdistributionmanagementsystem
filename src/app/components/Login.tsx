@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { FirstAccessRequiredError } from '../services/authService';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -24,8 +25,20 @@ export function Login() {
       await login(email, password);
       toast.success('Login realizado com sucesso!');
       navigate('/');
-    } catch (error: any) {
-      toast.error(error.message || 'Credenciais inválidas');
+    } catch (error: unknown) {
+      if (error instanceof FirstAccessRequiredError) {
+        const pending = {
+          userId: error.data.userId,
+          email,
+          userName: email.split('@')[0],
+          message: error.data.message,
+        };
+        sessionStorage.setItem('pendingFirstAccess', JSON.stringify(pending));
+        navigate('/definir-senha', { state: pending });
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Credenciais inválidas';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './components/Login';
+import { ChangePassword } from './components/ChangePassword';
 import { FamilyList } from './components/FamilyList';
 import { FamilyForm } from './components/FamilyForm';
 import { FamilyDetails } from './components/FamilyDetails';
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
         ],
       },
       { path: 'login', Component: Login },
+      { path: 'definir-senha', Component: ChangePassword },
     ],
   },
 ]);
