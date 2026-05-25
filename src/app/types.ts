@@ -84,6 +84,12 @@ export interface UserDTO {
   cargoId?: number;
   cargoName?: string;
   createdAt?: string;
+  permissions?: string[];
+}
+
+export interface UpdateUserDTO {
+  name: string;
+  email: string;
 }
 
 export interface LoginDTO {
@@ -102,6 +108,7 @@ export interface FirstAccessDTO {
 
 export interface ChangePasswordDTO {
   userId: number;
+  currentPassword?: string | null;
   newPassword: string;
 }
 

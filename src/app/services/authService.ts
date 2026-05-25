@@ -69,32 +69,43 @@ export const authService = {
   },
 
   changePassword: async (data: ChangePasswordDTO): Promise<TokenDTO> => {
-    const token = localStorage.getItem('hf_token');
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    return sendChangePassword('/auth/change-password', data);
+  },
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${BASE_URL}/auth/change-password`, {
-      method: 'PATCH',
-      headers,
-      credentials: 'include',
-      body: JSON.stringify(data),
-    });
-
-    const body = await parseResponseBody(response);
-
-    if (!response.ok) {
-      const errorMessage = extractErrorMessage(body, `Erro HTTP: ${response.status}`);
-      if (response.status === 401) {
-        document.dispatchEvent(new Event('auth:logout'));
-      }
-      throw new Error(errorMessage);
-    }
-
-    return body as TokenDTO;
+  updatePassword: async (data: ChangePasswordDTO): Promise<TokenDTO> => {
+    return sendChangePassword('/auth/update-password', data);
   },
 };
+
+async function sendChangePassword(
+  endpoint: string,
+  data: ChangePasswordDTO,
+): Promise<TokenDTO> {
+  const token = localStorage.getItem('hf_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'PATCH',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+
+  const body = await parseResponseBody(response);
+
+  if (!response.ok) {
+    const errorMessage = extractErrorMessage(body, `Erro HTTP: ${response.status}`);
+    if (response.status === 401) {
+      document.dispatchEvent(new Event('auth:logout'));
+    }
+    throw new Error(errorMessage);
+  }
+
+  return body as TokenDTO;
+}

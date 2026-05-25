@@ -1,8 +1,71 @@
 export const BASE_URL = 'http://localhost:8080/hf';
 
+interface ValidationFieldError {
+  field?: string;
+  defaultMessage?: string;
+  message?: string;
+}
+
+function extractValidationMessage(errors: unknown): string | null {
+  if (!Array.isArray(errors) || errors.length === 0) return null;
+
+  const messages = errors
+    .map((entry) => {
+      if (typeof entry === 'string') return entry;
+      if (entry && typeof entry === 'object') {
+        const e = entry as ValidationFieldError;
+        return e.defaultMessage ?? e.message ?? null;
+      }
+      return null;
+    })
+    .filter((msg): msg is string => typeof msg === 'string' && msg.trim() !== '');
+
+  return messages.length > 0 ? messages.join('; ') : null;
+}
+
+function extractErrorMessageFromJson(data: unknown, fallback: string): string {
+  if (!data || typeof data !== 'object') {
+    return typeof data === 'string' && data.trim() !== '' ? data : fallback;
+  }
+
+  const body = data as Record<string, unknown>;
+
+  if (typeof body.message === 'string' && body.message.trim() !== '') {
+    return body.message;
+  }
+  if (typeof body.detail === 'string' && body.detail.trim() !== '') {
+    return body.detail;
+  }
+
+  const validationMessage = extractValidationMessage(body.errors);
+  if (validationMessage) return validationMessage;
+
+  if (typeof body.error === 'string' && body.error.trim() !== '') {
+    return body.error;
+  }
+  if (typeof body.title === 'string' && body.title.trim() !== '') {
+    return body.title;
+  }
+
+  return fallback;
+}
+
+async function readErrorBody(response: Response, fallback: string): Promise<string> {
+  const text = await response.text();
+  const trimmed = text.trim();
+  if (!trimmed) return fallback;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return extractErrorMessageFromJson(parsed, fallback);
+  } catch {
+    return trimmed;
+  }
+}
+
 export const apiFetch = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const token = localStorage.getItem('hf_token');
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -18,23 +81,11 @@ export const apiFetch = async <T>(endpoint: string, options: RequestInit = {}): 
   });
 
   if (!response.ok) {
-    let errorMessage = `Erro HTTP: ${response.status}`;
-    const contentType = response.headers.get('content-type') ?? '';
+    const fallback = `Erro HTTP: ${response.status}`;
+    let errorMessage = fallback;
 
     try {
-      if (contentType.includes('application/json')) {
-        const errorData = await response.json();
-        errorMessage =
-          errorData?.message ??
-          errorData?.detail ??
-          (typeof errorData?.error === 'string' ? errorData.error : null) ??
-          errorMessage;
-      } else {
-        const text = (await response.text()).trim();
-        if (text) {
-          errorMessage = text;
-        }
-      }
+      errorMessage = await readErrorBody(response, fallback);
     } catch {
       // Mantém mensagem padrão se o body não puder ser lido
     }

@@ -1,5 +1,13 @@
 import { apiFetch } from './api';
-import { CreateRoleDTO, PageResponse, PermissionDTO, RoleDTO, UserDTO, UserRole } from '../types';
+import {
+  CreateRoleDTO,
+  PageResponse,
+  PermissionDTO,
+  RoleDTO,
+  UpdateUserDTO,
+  UserDTO,
+  UserRole,
+} from '../types';
 
 const USER_MANAGEMENT_BASE = '/user-management';
 const USERS_BASE = '/users';
@@ -54,10 +62,13 @@ export const userService = {
     });
   },
 
-  updateUser: (id: number, data: Partial<UserDTO>): Promise<UserDTO> => {
+  updateUser: (id: number, data: UpdateUserDTO): Promise<UserDTO> => {
     return apiFetch<UserDTO>(`${USERS_BASE}/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        name: data.name.trim(),
+        email: data.email.trim(),
+      }),
     });
   },
 

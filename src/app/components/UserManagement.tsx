@@ -26,11 +26,6 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from './
 import {ArrowLeft, Briefcase, Pencil, Shield, Trash2, User, UserPlus, Users,} from 'lucide-react';
 import {toast} from 'sonner';
 
-const DEFAULT_ROLES: RoleDTO[] = [
-    {id: 1, name: 'admin', permissions: []},
-    {id: 2, name: 'usuario', permissions: []},
-];
-
 function getPermissionLabel(permission: PermissionDTO) {
     return permission.label || permission.name;
 }
@@ -185,9 +180,9 @@ export function UserManagement() {
                 ...role,
                 permissions: role.permissions ?? [],
             }));
-            setCargos(roles.length > 0 ? roles : DEFAULT_ROLES);
+            setCargos(roles);
         } catch {
-            setCargos(DEFAULT_ROLES);
+            setCargos([]);
         } finally {
             setLoadingCargos(false);
         }
@@ -201,16 +196,7 @@ export function UserManagement() {
         } catch {
             toast.error('Não foi possível carregar os usuários');
             if (currentUser) {
-                setUsers([
-                    {
-                        id: currentUser.id ?? 1,
-                        name: currentUser.name,
-                        email: currentUser.email,
-                        role: 'ADMIN',
-                        cargoName: 'admin',
-                        createdAt: new Date().toISOString(),
-                    },
-                ]);
+                setUsers([]);
             }
         } finally {
             setLoadingUsers(false);
@@ -371,7 +357,10 @@ export function UserManagement() {
                 setCargos((list) =>
                     list.map((c) =>
                         c.id === editingCargo.id
-                            ? {...c, ...updated, permissions: updated.permissions ?? updateRolePayload.permissions ?? []}
+                            ? {
+                                ...c, ...updated,
+                                permissions: updated.permissions ?? updateRolePayload.permissions ?? []
+                            }
                             : c,
                     ),
                 );
@@ -383,7 +372,7 @@ export function UserManagement() {
                 };
 
                 const created = await userService.createCargo(createRolePayload);
-                setCargos((list) => [...list, { ...created, permissions: created.permissions ?? [] }]);
+                setCargos((list) => [...list, {...created, permissions: created.permissions ?? []}]);
                 toast.success('Cargo adicionado');
             }
             setCargoDialogOpen(false);
