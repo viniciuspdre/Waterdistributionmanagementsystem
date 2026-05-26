@@ -41,9 +41,9 @@ export function Header() {
     return (
         <>
             <header className="border-b bg-white">
-                <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-blue-500 rounded-lg">
+                <div className="container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="p-2 bg-blue-500 rounded-lg shrink-0">
                             <svg
                                 className="h-5 w-5 text-white"
                                 fill="none"
@@ -58,10 +58,10 @@ export function Header() {
                                 />
                             </svg>
                         </div>
-                        <span className="font-semibold text-lg">Sistema de Água</span>
+                        <span className="font-semibold text-base sm:text-lg truncate">Sistema de Água</span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                         <Button
                             variant="ghost"
                             size="icon"
@@ -72,7 +72,7 @@ export function Header() {
                             <LogOut className="h-5 w-5" />
                         </Button>
 
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <button
                                     className="relative h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -83,7 +83,7 @@ export function Header() {
                                     </Avatar>
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuContent align="end" sideOffset={8} className="w-56">
                                 <DropdownMenuLabel>
                                     <div className="flex flex-col space-y-1">
                                         <p className="text-sm font-medium">{user.name}</p>

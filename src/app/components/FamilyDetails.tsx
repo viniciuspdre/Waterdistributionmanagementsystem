@@ -7,7 +7,19 @@ import {Label} from './ui/label';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from './ui/card';
 import {Badge} from './ui/badge';
 import {Separator} from './ui/separator';
-import {AlertCircle, ArrowLeft, Calendar, Droplets, Edit, MapPin, Plus, Trash2, TrendingUp, Users,} from 'lucide-react';
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CalendarIcon,
+    Droplets,
+    Edit,
+    MapPin,
+    Plus,
+    Trash2,
+    TrendingUp,
+    Users,
+} from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -218,7 +230,7 @@ export function FamilyDetails() {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 {/* Coluna Principal */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-6 order-2 lg:order-none">
                     <Card>
                         <CardHeader>
                             <div className="flex justify-between items-start">
@@ -376,7 +388,7 @@ export function FamilyDetails() {
                     </Card>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 order-1 lg:order-none">
                     <Card>
                         <CardHeader>
                             <CardTitle>Registrar Entrega</CardTitle>
@@ -386,13 +398,23 @@ export function FamilyDetails() {
                             <form onSubmit={handleAddDelivery} className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="deliveryDate">Data da Entrega</Label>
-                                    <Input
-                                        id="deliveryDate"
-                                        type="date"
-                                        value={deliveryDate}
-                                        onChange={(e) => setDeliveryDate(e.target.value)}
-                                        required
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="deliveryDate"
+                                            type="date"
+                                            value={deliveryDate}
+                                            onChange={(e) => setDeliveryDate(e.target.value)}
+                                            required
+                                            className="[&::-webkit-calendar-picker-indicator]:hidden"
+                                        />
+                                        <CalendarIcon
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer"
+                                            onClick={() => {
+                                                const input = document.getElementById('deliveryDate') as HTMLInputElement;
+                                                input?.showPicker();
+                                            }}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">

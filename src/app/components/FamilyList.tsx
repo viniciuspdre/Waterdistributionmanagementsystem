@@ -69,20 +69,27 @@ export function FamilyList() {
     }, [families, searchTerm, sortBy]);
 
     return (
-        <div className="container mx-auto p-6 max-w-7xl">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold mb-2">Gerenciamento de Água</h1>
-                    <p className="text-muted-foreground">
+        <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+                <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2">Gerenciamento de Água</h1>
+                    <p className="text-muted-foreground text-sm sm:text-base">
                         Sistema de distribuição de água para famílias com cisternas
                     </p>
                 </div>
                 {(hasPermission('MANAGE_USERS') || hasPermission('ADMIN')) && (
-                    <div className="flex gap-3">
-                        <Button variant="outline" onClick={() => navigate('/configuracoes')}>
+                    <div className="flex gap-2 sm:gap-3 w-full sm:w-auto sm:shrink-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate('/configuracoes')}
+                            className="flex-1 sm:flex-none"
+                        >
                             Configurações
                         </Button>
-                        <Button onClick={() => navigate('/nova-familia')}>
+                        <Button
+                            onClick={() => navigate('/nova-familia')}
+                            className="flex-1 sm:flex-none"
+                        >
                             <Plus className="mr-2 h-4 w-4" />
                             Nova Família
                         </Button>

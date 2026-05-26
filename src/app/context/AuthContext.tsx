@@ -6,6 +6,7 @@ import {extractUserIdFromToken, parseJwt} from '../utils/jwt';
 
 interface AuthContextType {
     user: UserDTO | null;
+    isLoading: boolean;
     login: (email: string, password: string) => Promise<boolean>;
     completeFirstAccess: (
         userId: number,
@@ -21,36 +22,41 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({children}: { children: ReactNode }) {
     const [user, setUser] = useState<UserDTO | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
         const handleLogout = () => logout();
         document.addEventListener('auth:logout', handleLogout);
 
-        const storedProfile = localStorage.getItem('currentUserProfile');
-        const token = localStorage.getItem('hf_token');
+        try {
+            const storedProfile = localStorage.getItem('currentUserProfile');
+            const token = localStorage.getItem('hf_token');
 
-        if (token) {
-            const profile: UserDTO = storedProfile
-                ? JSON.parse(storedProfile)
-                : {name: '', email: ''};
+            if (token) {
+                const profile: UserDTO = storedProfile
+                    ? JSON.parse(storedProfile)
+                    : {name: '', email: ''};
 
-            // Garante que o id do usuário (vindo das claims do JWT) esteja presente
-            // mesmo quando o perfil salvo no storage não o contém.
-            if (profile.id == null) {
-                const idFromToken = extractUserIdFromToken(token);
-                if (idFromToken != null) {
-                    profile.id = idFromToken;
-                    localStorage.setItem('currentUserProfile', JSON.stringify(profile));
+                // Garante que o id do usuário (vindo das claims do JWT) esteja presente
+                // mesmo quando o perfil salvo no storage não o contém.
+                if (profile.id == null) {
+                    const idFromToken = extractUserIdFromToken(token);
+                    if (idFromToken != null) {
+                        profile.id = idFromToken;
+                        localStorage.setItem('currentUserProfile', JSON.stringify(profile));
+                    }
                 }
-            }
 
-            if (profile.email || profile.name) {
-                setUser(profile);
+                if (profile.email || profile.name) {
+                    setUser(profile);
+                } else {
+                    logout();
+                }
             } else {
                 logout();
             }
-        } else {
-            logout();
+        } finally {
+            setIsLoading(false);
         }
 
         return () => {
@@ -130,7 +136,7 @@ export function AuthProvider({children}: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{user, login, completeFirstAccess, logout, updateUser}}>
+        <AuthContext.Provider value={{user, isLoading, login, completeFirstAccess, logout, updateUser}}>
             {children}
         </AuthContext.Provider>
     );
